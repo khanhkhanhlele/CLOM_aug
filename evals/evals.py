@@ -3,6 +3,7 @@ import sys
 import time
 import itertools
 
+import kornia as K
 import diffdist.functional as distops
 import numpy as np
 import torch
@@ -107,6 +108,13 @@ def cil(P, model, loaders, steps, marginal=False, logger=None, T=None, w=None, b
         This is for testing CIL.
         If w and b are provided, it's CLOM. Otherwise, it's CLOM(-c) without calibration (memory free).
     """
+    train_transform = torch.nn.Sequential(
+                K.augmentation.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1, p=0.8, same_on_batch=False),
+                K.augmentation.RandomGrayscale(p=0.2, same_on_batch=False),
+                K.augmentation.RandomResizedCrop(scale=(0.08, 1.0), size=(32, 32), same_on_batch=False),
+                K.augmentation.RandomHorizontalFlip(p=0.5, same_on_batch=False),
+            )
+    
     # Switch to evaluate mode
     mode = model.training
     model.eval()
@@ -121,7 +129,10 @@ def cil(P, model, loaders, steps, marginal=False, logger=None, T=None, w=None, b
         for n, (images, labels) in enumerate(loader): # loader is in_loader
             images, labels = images.to(device), labels.to(device)
             batch_size = images.size(0)
-
+            N = 32
+            bs = images.shape[0]
+            images = images.repeat(N,1,1,1) # N * batchsize
+            images = train_transform(images)
             # For a batch, obtain outputs from each task networks and concatenate for cil
             cil_outputs = torch.tensor([]).to(device)
             scores_batch = []
@@ -133,6 +144,7 @@ def cil(P, model, loaders, steps, marginal=False, logger=None, T=None, w=None, b
                     with torch.no_grad():
                         _, outputs_aux, _ = model(t, rot_images, s=P.smax, joint=True, penultimate=True)
                     output_ = outputs_aux['joint'][:, P.n_cls_per_task * i: P.n_cls_per_task * (i + 1)] / 4.
+                    output_ = output_.view(N, bs, -1).sum(dim=0)
                     outputs += output_
 
                 # Apply calibration if available
