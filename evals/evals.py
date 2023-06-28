@@ -129,7 +129,7 @@ def cil(P, model, loaders, steps, marginal=False, logger=None, T=None, w=None, b
         for n, (images, labels) in enumerate(loader): # loader is in_loader
             images, labels = images.to(device), labels.to(device)
             batch_size = images.size(0)
-            N = 2
+            N = 32
             bs = images.shape[0]
             images = images.repeat(N,1,1,1) # N * batchsize
             images = train_transform(images)
