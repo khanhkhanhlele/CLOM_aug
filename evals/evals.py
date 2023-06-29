@@ -253,8 +253,9 @@ def test_classifier(P, model, loaders, steps, marginal=False, logger=None):
                 for i in range(4):
                     rot_images = torch.rot90(images, i, (2, 3))
                     _, outputs_aux, _ = model(data_id, rot_images, s=P.smax, joint=True, penultimate=True)
-                    outputs += outputs_aux['joint'][:, P.n_cls_per_task * i: P.n_cls_per_task * (i + 1)] / 4.
+                    output_ = outputs_aux['joint'][:, P.n_cls_per_task * i: P.n_cls_per_task * (i + 1)] / 4.
                     output_ = output_.view(N, bs, -1).sum(dim=0)
+                    outputs += output_
             # marginal is False during training. Use zero-rotation.
             else:
                 outputs, _ = model(data_id, images, s=P.smax)
